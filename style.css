@@ -185,6 +185,7 @@ footer {
   /* チームについて */
   .about-grid { grid-template-columns: 1fr; gap: 32px; }
   .about-text p { font-size: .95rem; }
+  .about-list li { flex-wrap: wrap; gap: 8px; }
   .container { padding: 48px 16px; }
 
   /* ギャラリー */

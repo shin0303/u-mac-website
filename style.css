@@ -177,4 +177,6 @@ footer {
   .nav-links { display: none; }
   .about-grid { grid-template-columns: 1fr; gap: 32px; }
   .join-info { gap: 28px; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; }
+  .gallery-grid img { height: 160px; }
 }

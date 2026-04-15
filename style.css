@@ -175,8 +175,23 @@ footer {
 @media (max-width: 768px) {
   #navbar { padding: 16px 20px; }
   .nav-links { display: none; }
+
+  /* ヒーロー */
+  #hero { height: 60vh; min-height: 400px; }
+  .hero-bg { object-position: center top; }
+  .hero-content h1 { font-size: 2.8rem; }
+  .hero-desc { font-size: .95rem; }
+
+  /* チームについて */
   .about-grid { grid-template-columns: 1fr; gap: 32px; }
-  .join-info { gap: 28px; }
+  .about-text p { font-size: .95rem; }
+  .container { padding: 48px 16px; }
+
+  /* ギャラリー */
   .gallery-grid { grid-template-columns: 1fr 1fr; }
   .gallery-grid img { height: 160px; }
+
+  /* 入部案内 */
+  .join-info { gap: 28px; }
+  .section-title { font-size: 1.5rem; }
 }

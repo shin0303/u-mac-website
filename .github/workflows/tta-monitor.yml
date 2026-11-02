@@ -17,6 +17,7 @@ concurrency: tta-monitor
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       DATA_BRANCH: tta-monitor-data
     steps:

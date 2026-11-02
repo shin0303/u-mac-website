@@ -1,0 +1,62 @@
+name: 沖縄県卓球協会HP 更新監視
+
+on:
+  schedule:
+    - cron: "13 3 * * *"   # 毎日 12:13 JST
+  workflow_dispatch:
+  push:
+    branches: [claude/brave-fermat-zb2ohy]   # 動作テスト用（マージ前に削除予定）
+    paths: [".github/workflows/tta-monitor.yml", ".github/scripts/tta_monitor.py"]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency: tta-monitor
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      DATA_BRANCH: tta-monitor-data
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 前回スナップショットを取得
+        run: |
+          if git ls-remote --exit-code --heads origin "$DATA_BRANCH" >/dev/null; then
+            git fetch --depth=1 origin "$DATA_BRANCH"
+            git worktree add state "origin/$DATA_BRANCH"
+          else
+            mkdir state
+          fi
+
+      - name: サイトを取得して比較
+        env:
+          STATE_DIR: state
+          REPORT_PATH: report.md
+        run: python3 .github/scripts/tta_monitor.py
+
+      - name: スナップショットを保存
+        working-directory: state
+        run: |
+          if [ ! -e .git ]; then
+            git init -q -b "$DATA_BRANCH"
+            git remote add origin "$(git -C .. remote get-url origin)"
+            git config http.https://github.com/.extraheader "$(git -C .. config --get http.https://github.com/.extraheader)"
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "保存内容に変化なし"; exit 0; fi
+          git commit -q -m "TTA snapshot $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')"
+          git push origin "HEAD:refs/heads/$DATA_BRANCH"
+
+      - name: 更新があれば Issue で通知
+        if: hashFiles('report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "【卓球協会HP】更新を検知 $(TZ=Asia/Tokyo date '+%Y-%m-%d')" \
+            --body-file report.md

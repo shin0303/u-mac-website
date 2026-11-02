@@ -4,9 +4,6 @@ on:
   schedule:
     - cron: "13 3 * * *"   # 毎日 12:13 JST
   workflow_dispatch:
-  push:
-    branches: [claude/brave-fermat-zb2ohy]   # 動作テスト用（マージ前に削除予定）
-    paths: [".github/workflows/tta-monitor.yml", ".github/scripts/tta_monitor.py"]
 
 permissions:
   contents: write

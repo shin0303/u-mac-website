@@ -3,15 +3,13 @@
 前回スナップショット (STATE_DIR) と比較し、差分があれば Markdown レポートを
 REPORT_PATH に書き出す。初回はスナップショット保存のみ。標準ライブラリのみ使用。
 """
-import html
 import json
 import os
 import re
 import sys
 import urllib.request
-from collections import Counter
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urldefrag
+from urllib.parse import urljoin, urldefrag, urlparse
 
 PAGES = [p.strip() for p in os.environ.get("TTA_PAGES", "https://tta.okinawa/").split(",") if p.strip()]
 STATE_DIR = os.environ.get("STATE_DIR", "state")
@@ -79,6 +77,19 @@ def fetch(url):
     return raw.decode(charset, errors="replace")
 
 
+def internal(links):
+    """協会サイト内へのリンクで、テキストがあるものだけを返す（重複除去・順序維持）。"""
+    seen, out = set(), []
+    for u, t in links:
+        host = urlparse(u).hostname or ""
+        if (host == "tta.okinawa" or host.endswith(".tta.okinawa")) and t and t != ".":
+            key = (u, t)
+            if key not in seen:
+                seen.add(key)
+                out.append([u, t])
+    return out
+
+
 def slug(url):
     return re.sub(r"[^A-Za-z0-9]+", "_", url).strip("_")[:120]
 
@@ -104,38 +115,25 @@ def main():
             print("  初回スナップショットを保存しました（通知なし）")
             continue
 
-        old_links = {tuple(l) for l in prev["links"]}
-        new_links = [l for l in snap["links"] if tuple(l) not in old_links]
-        # スポンサー欄などは表示順がランダムに入れ替わるため、順序は無視して
-        # 「増えた行」「消えた行」だけを比較する
-        old_c, new_c = Counter(prev["lines"]), Counter(snap["lines"])
-        added, removed = new_c - old_c, old_c - new_c
-        diff = []
-        for line in snap["lines"]:
-            if added[line] > 0:
-                diff.append("+ " + line)
-                added[line] -= 1
-        for line in prev["lines"]:
-            if removed[line] > 0:
-                diff.append("- " + line)
-                removed[line] -= 1
-        if not new_links and not diff:
+        # 判定対象は「協会サイト内へのリンク（日付・タイトル付き）」のみ。
+        # スポンサー欄は表示企業や順序が毎回ランダムに変わるため本文比較はしない。
+        old_items = {tuple(l) for l in internal(prev["links"])}
+        new_items = {tuple(l) for l in internal(snap["links"])}
+        added = [l for l in internal(snap["links"]) if tuple(l) not in old_items]
+        removed = [l for l in internal(prev["links"]) if tuple(l) not in new_items]
+        if not added and not removed:
             print("  変化なし")
             continue
 
         part = [f"## {url}"]
-        if new_links:
-            part.append("### 新しく出現したリンク")
-            for u, t in new_links[:50]:
-                part.append(f"- [{html.escape(t) or u}]({u})")
-        if diff:
-            part.append("### 本文の差分（+ 追加 / - 削除）")
-            body = "\n".join(diff)
-            if len(body) > 50000:
-                body = body[:50000] + "\n…（長いため省略）"
-            part.append("```diff\n" + body + "\n```")
+        if added:
+            part.append("### 新しい／変更された記事・ページ")
+            part += [f"- [{t}]({u})" for u, t in added[:100]]
+        if removed:
+            part.append("### 消えた記事・ページ")
+            part += [f"- ~~{t}~~ ({u})" for u, t in removed[:100]]
         sections.append("\n\n".join(part))
-        print(f"  変化あり: 新リンク {len(new_links)} 件, 差分 {len(diff)} 行")
+        print(f"  変化あり: 追加 {len(added)} 件, 削除 {len(removed)} 件")
 
     if sections:
         with open(REPORT_PATH, "w", encoding="utf-8") as f:

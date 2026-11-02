@@ -3,13 +3,13 @@
 前回スナップショット (STATE_DIR) と比較し、差分があれば Markdown レポートを
 REPORT_PATH に書き出す。初回はスナップショット保存のみ。標準ライブラリのみ使用。
 """
-import difflib
 import html
 import json
 import os
 import re
 import sys
 import urllib.request
+from collections import Counter
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urldefrag
 
@@ -106,8 +106,19 @@ def main():
 
         old_links = {tuple(l) for l in prev["links"]}
         new_links = [l for l in snap["links"] if tuple(l) not in old_links]
-        diff = [d for d in difflib.unified_diff(prev["lines"], snap["lines"], lineterm="", n=1)
-                if not d.startswith(("---", "+++"))]
+        # スポンサー欄などは表示順がランダムに入れ替わるため、順序は無視して
+        # 「増えた行」「消えた行」だけを比較する
+        old_c, new_c = Counter(prev["lines"]), Counter(snap["lines"])
+        added, removed = new_c - old_c, old_c - new_c
+        diff = []
+        for line in snap["lines"]:
+            if added[line] > 0:
+                diff.append("+ " + line)
+                added[line] -= 1
+        for line in prev["lines"]:
+            if removed[line] > 0:
+                diff.append("- " + line)
+                removed[line] -= 1
         if not new_links and not diff:
             print("  変化なし")
             continue

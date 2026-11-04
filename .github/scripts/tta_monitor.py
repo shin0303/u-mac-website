@@ -97,8 +97,14 @@ def slug(url):
 def main():
     os.makedirs(STATE_DIR, exist_ok=True)
     sections = []
+    failed = 0
     for url in PAGES:
-        page = fetch(url)
+        try:
+            page = fetch(url)
+        except Exception as e:  # 1ページの失敗で全体を止めない
+            print(f"{url}: 取得失敗 {e}")
+            failed += 1
+            continue
         ex = Extractor(url)
         ex.feed(page)
         snap = {"url": url, "lines": ex.lines(),
@@ -138,6 +144,8 @@ def main():
     if sections:
         with open(REPORT_PATH, "w", encoding="utf-8") as f:
             f.write("沖縄県卓球協会のホームページに更新を検知しました。\n\n" + "\n\n".join(sections))
+    if failed == len(PAGES):
+        return 1
 
 
 if __name__ == "__main__":

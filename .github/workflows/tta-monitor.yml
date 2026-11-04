@@ -32,6 +32,14 @@ jobs:
       - name: サイトを取得して比較
         env:
           STATE_DIR: state
+          # トップ / 大会日程・結果 / 高体連 / 中体連 / 小学生 / 一般・大学
+          TTA_PAGES: >-
+            https://tta.okinawa/,
+            http://www.tta.okinawa/user.php?CMD=115401200000000,
+            http://www.tta.okinawa/user.php?CMD=114100000000004,
+            http://www.tta.okinawa/user.php?CMD=114100000000005,
+            http://www.tta.okinawa/user.php?CMD=114100000000006,
+            http://www.tta.okinawa/user.php?CMD=114100000000003
           REPORT_PATH: report.md
         run: python3 .github/scripts/tta_monitor.py
 

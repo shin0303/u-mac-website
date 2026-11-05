@@ -30,6 +30,7 @@ jobs:
           fi
 
       - name: サイトを取得して比較
+        id: compare
         env:
           STATE_DIR: state
           # トップ / 大会日程・結果 / 高体連 / 中体連 / 小学生 / 一般・大学
@@ -43,7 +44,19 @@ jobs:
           REPORT_PATH: report.md
         run: python3 .github/scripts/tta_monitor.py
 
+      - name: 更新があれば Issue で通知
+        id: notify
+        if: hashFiles('report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in 1 2 3; do gh issue create \
+            --title "【卓球協会HP】更新を検知 $(TZ=Asia/Tokyo date '+%Y-%m-%d')" \
+            --body-file report.md && exit 0; sleep $((i*10)); done; exit 1
+
       - name: スナップショットを保存
+        # 比較が成功し、通知が失敗していない場合のみ保存（通知漏れ防止）
+        if: always() && steps.compare.outcome == 'success' && steps.notify.outcome != 'failure'
         working-directory: state
         run: |
           if [ ! -e .git ]; then
@@ -56,13 +69,4 @@ jobs:
           git add -A
           if git diff --cached --quiet; then echo "保存内容に変化なし"; exit 0; fi
           git commit -q -m "TTA snapshot $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')"
-          git push origin "HEAD:refs/heads/$DATA_BRANCH"
-
-      - name: 更新があれば Issue で通知
-        if: hashFiles('report.md') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh issue create \
-            --title "【卓球協会HP】更新を検知 $(TZ=Asia/Tokyo date '+%Y-%m-%d')" \
-            --body-file report.md
+          for i in 1 2 3 4; do git push origin "HEAD:refs/heads/$DATA_BRANCH" && exit 0; sleep $((i*10)); done; exit 1
